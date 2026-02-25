@@ -3,58 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <title>Loan Approval Prediction</title>
+
     <style>
         body {
             background: #eef2f5;
             font-family: Arial, sans-serif;
         }
+
         .container {
             width: 520px;
             margin: 40px auto;
-            background: #fff;
+            background: #ffffff;
             padding: 25px;
             border-radius: 10px;
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
         }
+
         h2 {
             text-align: center;
             margin-bottom: 20px;
         }
+
         label {
             font-weight: bold;
         }
+
         input, select, button {
             width: 100%;
             padding: 9px;
             margin-top: 6px;
             margin-bottom: 14px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
         }
+
         button {
             background: #007bff;
             color: white;
             border: none;
             font-size: 16px;
             cursor: pointer;
-            border-radius: 5px;
         }
+
         button:hover {
             background: #0056b3;
         }
+
         .result {
             text-align: center;
             margin-top: 20px;
             font-size: 18px;
+            font-weight: bold;
         }
+
+        .approved { color: green; }
+        .rejected { color: red; }
+        .review { color: orange; }
+
         .confidence {
-            color: green;
-            margin-top: 5px;
+            margin-top: 6px;
+            font-size: 16px;
         }
+
         .reason {
+            margin-top: 6px;
+            font-size: 15px;
             color: #555;
-            margin-top: 5px;
         }
     </style>
 </head>
+
 <body>
 
 <div class="container">
@@ -64,71 +82,81 @@
 
         <label>Gender</label>
         <select name="gender" required>
-            <option value="1">Male</option>
-            <option value="0">Female</option>
+            <option value="1" {% if form_data and form_data.gender == "1" %}selected{% endif %}>Male</option>
+            <option value="0" {% if form_data and form_data.gender == "0" %}selected{% endif %}>Female</option>
         </select>
 
         <label>Married</label>
         <select name="married" required>
-            <option value="1">Yes</option>
-            <option value="0">No</option>
+            <option value="1" {% if form_data and form_data.married == "1" %}selected{% endif %}>Yes</option>
+            <option value="0" {% if form_data and form_data.married == "0" %}selected{% endif %}>No</option>
         </select>
 
         <label>Dependents</label>
-        <input type="number" name="dependents" min="0" required>
+        <input type="number" name="dependents" min="0"
+               value="{{ form_data.dependents if form_data else '' }}" required>
 
         <label>Education</label>
         <select name="education" required>
-            <option value="1">Graduate</option>
-            <option value="0">Not Graduate</option>
+            <option value="1" {% if form_data and form_data.education == "1" %}selected{% endif %}>Graduate</option>
+            <option value="0" {% if form_data and form_data.education == "0" %}selected{% endif %}>Not Graduate</option>
         </select>
 
         <label>Self Employed</label>
         <select name="self_employed" required>
-            <option value="1">Yes</option>
-            <option value="0">No</option>
+            <option value="1" {% if form_data and form_data.self_employed == "1" %}selected{% endif %}>Yes</option>
+            <option value="0" {% if form_data and form_data.self_employed == "0" %}selected{% endif %}>No</option>
         </select>
 
         <label>Applicant Income</label>
-        <input type="number" name="applicant_income" required>
+        <input type="number" name="applicant_income"
+               value="{{ form_data.applicant_income if form_data else '' }}" required>
 
         <label>Coapplicant Income</label>
-        <input type="number" name="coapplicant_income" required>
+        <input type="number" name="coapplicant_income"
+               value="{{ form_data.coapplicant_income if form_data else '' }}" required>
 
         <label>Loan Amount</label>
-        <input type="number" name="loan_amount" required>
+        <input type="number" name="loan_amount"
+               value="{{ form_data.loan_amount if form_data else '' }}" required>
 
         <label>Loan Amount Term</label>
-        <input type="number" name="loan_amount_term" required>
+        <input type="number" name="loan_amount_term"
+               value="{{ form_data.loan_amount_term if form_data else '' }}" required>
 
         <label>Credit History</label>
         <select name="credit_history" required>
-            <option value="1">Good</option>
-            <option value="0">Bad</option>
+            <option value="1" {% if form_data and form_data.credit_history == "1" %}selected{% endif %}>Good</option>
+            <option value="0" {% if form_data and form_data.credit_history == "0" %}selected{% endif %}>Bad</option>
         </select>
 
         <label>Urban Property</label>
         <select name="property_area_urban" required>
-            <option value="1">Yes</option>
-            <option value="0">No</option>
+            <option value="1" {% if form_data and form_data.property_area_urban == "1" %}selected{% endif %}>Yes</option>
+            <option value="0" {% if form_data and form_data.property_area_urban == "0" %}selected{% endif %}>No</option>
         </select>
 
         <label>Semiurban Property</label>
         <select name="property_area_semiurban" required>
-            <option value="1">Yes</option>
-            <option value="0">No</option>
+            <option value="1" {% if form_data and form_data.property_area_semiurban == "1" %}selected{% endif %}>Yes</option>
+            <option value="0" {% if form_data and form_data.property_area_semiurban == "0" %}selected{% endif %}>No</option>
         </select>
 
         <button type="submit">Predict Loan Status</button>
     </form>
 
     {% if prediction_text %}
-        <div class="result">
-            <p>{{ prediction_text }}</p>
-            <p class="confidence">{{ confidence_text }}</p>
-            <p class="reason">{{ reason_text }}</p>
+        <div class="result
+            {% if 'Approved' in prediction_text %}approved
+            {% elif 'Rejected' in prediction_text %}rejected
+            {% else %}review{% endif %}">
+            {{ prediction_text }}
         </div>
+
+        <div class="confidence">{{ confidence_text }}</div>
+        <div class="reason">{{ reason_text }}</div>
     {% endif %}
+
 </div>
 
 </body>

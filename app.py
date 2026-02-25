@@ -5,7 +5,6 @@ import os
 
 app = Flask(__name__)
 
-# Load model
 MODEL_PATH = "model/loan_model.pkl"
 SCALER_PATH = "model/scaler.pkl"
 
@@ -14,7 +13,6 @@ if not os.path.exists(MODEL_PATH):
 
 model = pickle.load(open(MODEL_PATH, "rb"))
 
-# Load scaler if exists
 scaler = None
 if os.path.exists(SCALER_PATH):
     scaler = pickle.load(open(SCALER_PATH, "rb"))
@@ -22,37 +20,36 @@ if os.path.exists(SCALER_PATH):
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", form_data={})
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        # Collect inputs
-        input_data = np.array([[
-            int(request.form["gender"]),
-            int(request.form["married"]),
-            int(request.form["dependents"]),
-            int(request.form["education"]),
-            int(request.form["self_employed"]),
-            float(request.form["applicant_income"]),
-            float(request.form["coapplicant_income"]),
-            float(request.form["loan_amount"]),
-            float(request.form["loan_amount_term"]),
-            float(request.form["credit_history"]),
-            int(request.form["property_area_urban"]),
-            int(request.form["property_area_semiurban"])
+        # Store form data
+        form_data = request.form.to_dict()
+
+        input_data = np.array([[ 
+            int(form_data["gender"]),
+            int(form_data["married"]),
+            int(form_data["dependents"]),
+            int(form_data["education"]),
+            int(form_data["self_employed"]),
+            float(form_data["applicant_income"]),
+            float(form_data["coapplicant_income"]),
+            float(form_data["loan_amount"]),
+            float(form_data["loan_amount_term"]),
+            float(form_data["credit_history"]),
+            int(form_data["property_area_urban"]),
+            int(form_data["property_area_semiurban"])
         ]])
 
-        # Scale data if scaler exists
         if scaler:
             input_data = scaler.transform(input_data)
 
-        # Predict probability
         probability = model.predict_proba(input_data)[0][1]
         confidence = round(probability * 100, 2)
 
-        # Decision logic
         if probability >= 0.65:
             result = "✅ Loan Approved"
             reason = "Strong applicant profile with good repayment capability."
@@ -67,14 +64,18 @@ def predict():
             "index.html",
             prediction_text=result,
             confidence_text=f"Approval Probability: {confidence}%",
-            reason_text=reason
+            reason_text=reason,
+            form_data=form_data
         )
 
     except Exception as e:
-        return render_template("index.html", prediction_text=f"Error: {e}")
+        return render_template(
+            "index.html",
+            prediction_text=f"Error: {e}",
+            form_data=request.form.to_dict()
+        )
 
 
 if __name__ == "__main__":
     print("Starting Flask server...")
     app.run(host="127.0.0.1", port=5000, debug=True)
-''
