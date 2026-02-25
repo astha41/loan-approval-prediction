@@ -1,81 +1,101 @@
 from flask import Flask, render_template, request
-import numpy as np
-import pickle
-import os
 
 app = Flask(__name__)
 
-MODEL_PATH = "model/loan_model.pkl"
-SCALER_PATH = "model/scaler.pkl"
+@app.route("/", methods=["GET", "POST"])
+def index():
+    prediction = None
+    probability = None
+    explanation = None
 
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError("loan_model.pkl not found. Train model first.")
+    if request.method == "POST":
+        try:
+            gender = request.form["gender"]
+            married = request.form["married"]
+            dependents = int(request.form["dependents"])
+            education = request.form["education"]
+            employment = request.form["employment"]
 
-model = pickle.load(open(MODEL_PATH, "rb"))
+            applicant_income = float(request.form["applicant_income"])
+            coapplicant_income = float(request.form["coapplicant_income"])
+            loan_amount = float(request.form["loan_amount"]) * 1000
+            loan_term_days = int(request.form["loan_term_days"])
+            credit_history = int(request.form["credit_history"])
+            property_area = request.form["property_area"]
 
-scaler = None
-if os.path.exists(SCALER_PATH):
-    scaler = pickle.load(open(SCALER_PATH, "rb"))
+            if applicant_income <= 0 or loan_amount <= 0 or loan_term_days <= 0:
+                raise ValueError("Invalid numeric values")
 
+            # Convert days to months
+            loan_term_months = loan_term_days / 30
 
-@app.route("/")
-def home():
-    return render_template("index.html", form_data={})
+            total_income = applicant_income + coapplicant_income
+            emi = loan_amount / loan_term_months
+            emi_ratio = emi / total_income
 
+            score = 0
 
-@app.route("/predict", methods=["POST"])
-def predict():
-    try:
-        # Store form data
-        form_data = request.form.to_dict()
+            # Credit History
+            if credit_history == 1:
+                score += 30
+            else:
+                score -= 40
 
-        input_data = np.array([[ 
-            int(form_data["gender"]),
-            int(form_data["married"]),
-            int(form_data["dependents"]),
-            int(form_data["education"]),
-            int(form_data["self_employed"]),
-            float(form_data["applicant_income"]),
-            float(form_data["coapplicant_income"]),
-            float(form_data["loan_amount"]),
-            float(form_data["loan_amount_term"]),
-            float(form_data["credit_history"]),
-            int(form_data["property_area_urban"]),
-            int(form_data["property_area_semiurban"])
-        ]])
+            # Income strength
+            if total_income >= 40000:
+                score += 25
+            elif total_income >= 20000:
+                score += 15
+            else:
+                score -= 10
 
-        if scaler:
-            input_data = scaler.transform(input_data)
+            # Employment
+            if employment == "Salaried":
+                score += 15
+            else:
+                score += 5
 
-        probability = model.predict_proba(input_data)[0][1]
-        confidence = round(probability * 100, 2)
+            # Education
+            if education == "Graduate":
+                score += 10
 
-        if probability >= 0.65:
-            result = "✅ Loan Approved"
-            reason = "Strong applicant profile with good repayment capability."
-        elif probability >= 0.50:
-            result = "⚠️ Loan Under Review"
-            reason = "Moderate risk. Further verification required."
-        else:
-            result = "❌ Loan Rejected"
-            reason = "High risk based on income, loan amount, or credit history."
+            # Dependents
+            if dependents > 3:
+                score -= 10
 
-        return render_template(
-            "index.html",
-            prediction_text=result,
-            confidence_text=f"Approval Probability: {confidence}%",
-            reason_text=reason,
-            form_data=form_data
-        )
+            # EMI affordability
+            if emi_ratio <= 0.35:
+                score += 25
+            elif emi_ratio <= 0.50:
+                score += 10
+            else:
+                score -= 30
 
-    except Exception as e:
-        return render_template(
-            "index.html",
-            prediction_text=f"Error: {e}",
-            form_data=request.form.to_dict()
-        )
+            # Final Decision
+            if score >= 70:
+                prediction = "Approved"
+                probability = 85
+                explanation = "Strong financial profile with affordable EMI."
+            elif score >= 45:
+                prediction = "Under Review"
+                probability = 60
+                explanation = "Moderate risk. Requires additional verification."
+            else:
+                prediction = "Rejected"
+                probability = 25
+                explanation = "High risk due to income, EMI, or credit history."
 
+        except Exception as e:
+            prediction = "Error"
+            probability = 0
+            explanation = "Invalid input. Please check all fields."
+
+    return render_template(
+        "index.html",
+        prediction=prediction,
+        probability=probability,
+        explanation=explanation
+    )
 
 if __name__ == "__main__":
-    print("Starting Flask server...")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(debug=True)
